@@ -1,3 +1,9 @@
+Note
+====
+
+this repo is under heavy construction and things most likely don't work as advertised, once stable state is reached this note will disappear
+
+
 ansible-libs
 ============
 
