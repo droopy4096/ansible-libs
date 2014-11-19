@@ -14,15 +14,15 @@ options:
     - names of the packages to query comma-separated
     required: true
   state:
-    choices: [ "present", "absent" ]
+    choices: [ "present", "absent", "stat" ]
     default: present
     description:
-    - whether packages should be tested for absence or presence 
+    - whether packages should be tested for absence, presence or just stat packages
     required: false
 '''
 
 EXAMPLES='''
-- rpm: names=httpd,php state=present
+- rpm_query: names=httpd,php state=present
 '''
 
 # import sys
@@ -40,7 +40,7 @@ def main():
     module=AnsibleModule(
             argument_spec = dict(
                     names=dict(type='list',required=True),
-                    state=dict(choices=["absent", "present"], default='present'),
+                    state=dict(choices=["absent", "present","stat"], default='present'),
                 )
         )
 
@@ -76,10 +76,11 @@ def main():
             present_packages[p]=res[p]
             # print "%s-%s-%s" % (h['name'], h['version'], h['release'])
             
-    for p in res.keys():
-        if res[p]['state']!=state:
-            failed=True
-            
+    if state != 'stat':
+        for p in res.keys():
+            if res[p]['state']!=state:
+                failed=True
+                
     module.exit_json(changed=False,ansible_facts={'all_packages':res,'present_packages':present_packages,'absent_packages':absent_packages},failed=failed)
     # print json.dumps({"changed":"True","ansible_facts":res})
     
