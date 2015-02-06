@@ -1,0 +1,58 @@
+#!/usr/bin/python
+
+DOCUMENTATION='''
+---
+author: Dmitry Makovey
+module: apache_vhost
+short_description: Check RPM package status
+description:
+  - This module queries RPM database setting Ansible facts for queried packages
+version_added: "0.1"
+options:
+  command:
+    list:
+      - lists apache defined vhosts
+  name: 
+ 
+'''
+
+EXAMPLES='''
+- apache_vhost: list
+'''
+
+# import sys
+# try:
+#     import json
+# except ImportError:
+#     import simplejson as json
+# import os
+# import shlex
+
+import pipes
+
+def list():
+    res=[]
+    t=pipes.Template()
+    t.append('httpd -S 2>&1')
+    t.append('sed -n '+"'"+'s/.*(\(.*\):.*/\1/p'+"'")
+    t.append('sort -u')
+    return res
+
+def main():
+    module=AnsibleModule(
+            argument_spec = dict(
+                    name=dict(type='list'),
+                    command=dict(choices=["list", "get"], default='list', required=True),
+                )
+        )
+
+    command = module.params['command']
+    name=module.params['name']
+    
+    module.exit_json(changed=False,ansible_facts=list,failed=False)
+    # print json.dumps({"changed":"True","ansible_facts":res})
+    
+    
+# include magic from lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()
