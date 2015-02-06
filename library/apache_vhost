@@ -4,15 +4,11 @@ DOCUMENTATION='''
 ---
 author: Dmitry Makovey
 module: apache_vhost
-short_description: Check RPM package status
+short_description: list apache VHosts
 description:
-  - This module queries RPM database setting Ansible facts for queried packages
+  - This module queries httpd for all defined vhosts and lists them
 version_added: "0.1"
 options:
-  command:
-    list:
-      - lists apache defined vhosts
-  name: 
  
 '''
 
