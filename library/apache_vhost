@@ -30,27 +30,38 @@ EXAMPLES='''
 
 import pipes
 
+t_http_conf_files=pipes.Template()
+t_http_conf_files.prepend('httpd -S 2>&1','.-')
+t_http_conf_files.append('sed -n '+"'"+'s/.*(\\(.*\\):.*/\\1/p'+"'",'--')
+t_http_conf_files.append('sort -u','--')
+
+t_vhost=pipes.Template()
+t_vhost.append('egrep "^[[:space:]]*Server(Name|Alias)"','--')
+t_vhost.append("awk '{print $NF}'",'--')
+t_vhost.append("sort -u",'--')
+
 def list():
+    conf_files=[]
+    with t_http_conf_files.open('foo','r') as f
+        for l in f:
+            conf_files.append(l[:-1])
     res=[]
-    t=pipes.Template()
-    t.prepend('httpd -S 2>&1','.-')
-    t.append('sed -n '+"'"+'s/.*(\\(.*\\):.*/\\1/p'+"'",'--')
-    t.append('sort -u','--')
-    f=t.open('foo','r')
-    for l in f:
-        res.append(l[:-1])
+    for fn in conf_files:
+        with t_vhost.open(fn,'r') as f:
+            for l in f:
+                res.append(l)
     return res
 
 def main():
     module=AnsibleModule(
             argument_spec = dict(
-                    name=dict(default=None, required=False),
-                    command=dict(choices=["list", "get"],default='list'),
+                    # name=dict(default=None, required=False),
+                    # command=dict(choices=["list", "get"],default='list'),
                 )
         )
 
-    command = module.params['command']
-    name=module.params['name']
+    # command = module.params['command']
+    # name=module.params['name']
     
     module.exit_json(changed=False,ansible_facts=list(),failed=False)
     # print json.dumps({"changed":"True","ansible_facts":res})
