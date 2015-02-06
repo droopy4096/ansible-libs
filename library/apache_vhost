@@ -63,7 +63,7 @@ def main():
     # command = module.params['command']
     # name=module.params['name']
     
-    module.exit_json(changed=False,ansible_facts=list(),failed=False)
+    module.exit_json(changed=False,ansible_facts={'vhosts':list()},failed=False)
     # print json.dumps({"changed":"True","ansible_facts":res})
     
     
