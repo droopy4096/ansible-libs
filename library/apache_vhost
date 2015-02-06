@@ -42,7 +42,7 @@ t_vhost.append("sort -u",'--')
 
 def list():
     conf_files=[]
-    with t_http_conf_files.open('foo','r') as f
+    with t_http_conf_files.open('foo','r') as f:
         for l in f:
             conf_files.append(l[:-1])
     res=[]
