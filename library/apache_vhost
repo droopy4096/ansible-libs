@@ -45,7 +45,7 @@ def main():
     module=AnsibleModule(
             argument_spec = dict(
                     name=dict(type='list'),
-                    command=dict(choices=["list", "get"], default='list', required=True),
+                    command=dict(choices=["list", "get"], required=True),
                 )
         )
 
