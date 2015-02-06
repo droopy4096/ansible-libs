@@ -52,7 +52,7 @@ def list():
         # with t_vhost.open(fn,'r') as f:
         f=t_vhost.open(fn,'r')
         for l in f:
-            res.append(l)
+            res.append(l[:-1])
         f.close()
     return res
 
