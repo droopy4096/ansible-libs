@@ -1,0 +1,72 @@
+#!/usr/bin/python
+
+DOCUMENTATION='''
+---
+author: Dmitry Makovey
+module: apache_vhost
+short_description: list apache VHosts
+description:
+  - This module queries httpd for all defined vhosts and lists them
+version_added: "0.1"
+options:
+ 
+'''
+
+EXAMPLES='''
+- apache_vhost: list
+'''
+
+# import sys
+# try:
+#     import json
+# except ImportError:
+#     import simplejson as json
+# import os
+# import shlex
+
+import pipes
+
+t_http_conf_files=pipes.Template()
+t_http_conf_files.prepend('httpd -S 2>&1','.-')
+t_http_conf_files.append('sed -n '+"'"+'s/.*(\\(.*\\):.*/\\1/p'+"'",'--')
+t_http_conf_files.append('sort -u','--')
+
+t_vhost=pipes.Template()
+t_vhost.append('egrep "^[[:space:]]*Server(Name|Alias)"','--')
+t_vhost.append("awk '{print $NF}'",'--')
+t_vhost.append("sort -u",'--')
+
+def list():
+    conf_files=[]
+    # with t_http_conf_files.open('foo','r') as f:
+    f=t_http_conf_files.open('foo','r')
+    for l in f:
+        conf_files.append(l[:-1])
+    f.close()
+    res=[]
+    for fn in conf_files:
+        # with t_vhost.open(fn,'r') as f:
+        f=t_vhost.open(fn,'r')
+        for l in f:
+            res.append(l[:-1])
+        f.close()
+    return res
+
+def main():
+    module=AnsibleModule(
+            argument_spec = dict(
+                    # name=dict(default=None, required=False),
+                    # command=dict(choices=["list", "get"],default='list'),
+                )
+        )
+
+    # command = module.params['command']
+    # name=module.params['name']
+    
+    module.exit_json(changed=False,ansible_facts={'vhosts':list()},failed=False)
+    # print json.dumps({"changed":"True","ansible_facts":res})
+    
+    
+# include magic from lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()
