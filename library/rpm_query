@@ -41,7 +41,8 @@ def main():
             argument_spec = dict(
                     names=dict(type='list',required=True),
                     state=dict(choices=["absent", "present","stat"], default='present'),
-                )
+                ),
+            supports_check_mode=True
         )
 
     state = module.params['state']
