@@ -1,0 +1,295 @@
+#!/usr/bin/python
+
+import augeas
+import logging
+
+log=None
+log_debug=False
+
+def debug( fn ):
+    global log_debug
+    def debug_fn(*args,**kwargs):
+        if log_debug:
+            log.debug("Called: %s ( %s %s )" % ( fn.__name__, args, kwargs ))
+        return fn(*args,**kwargs)
+    return debug_fn
+
+# taken from https://github.com/hercules-team/python-augeas/blob/master/test/test_augeas.py
+def recurmatch(aug, path):
+    global log
+    if path:
+        if path != "/":
+            val = aug.get(path)
+            if val:
+                yield (path, val)
+
+        m = []
+        if path != "/":
+            try:
+                aug.match(path)
+            except RuntimeError, e:
+                log.debug('Augeas failed to match path '+path)
+                raise e
+        for i in m:
+            for x in recurmatch(aug, i):
+                yield x
+        else:
+            for i in aug.match(path + "/*"):
+                for x in recurmatch(aug, i):
+                    yield x
+
+class OperationFailed(Exception):
+    def __init__(self,msg):
+        self.msg=msg
+    def __str__(self):
+        return self.msg
+
+class ConfigurationModified(Exception):
+    pass
+
+class UnknownCommand(OperationFailed):
+    pass
+
+class AugeasWrapper:
+
+    def __init__(self,root=None,check_mode=False,strict=False,flags=augeas.Augeas.NONE):
+        self.root=root
+        self.aug=augeas.Augeas(root=self.root,flags=flags)
+        self.check_mode=check_mode
+        self.strict=strict
+        self.allowed_commands=['set',
+                                'setm',
+                                'match',
+                                'defvar',
+                                'defnode',
+                                'load',
+                                'save',
+                                'touch',
+                                'rm','remove',
+                                'get']
+
+
+    @debug
+    def defvar(self,*args,**kwargs):
+        self.aug.defvar(str(args[0]),str(args[1]))
+
+    @debug
+    def defnode(self,*args,**kwargs):
+        self.aug.defnode(str(args[0]),str(args[1]))
+
+    @debug
+    def load(self,*args,**kwargs):
+        self.aug.load()
+
+    @debug
+    def save(self,*args,**kwargs):
+        if self.check_mode:
+            # We're in check mode - don't ever save!
+            log.debug("Check-mode - skipping save")
+            return
+        self.aug.save()
+        raise ConfigurationModified
+
+    @debug
+    def touch(self,*args,**kwargs):
+        self.aug.set(str(args[0]),' ')
+        raise ConfigurationModified
+
+    @debug
+    def match(self,*args,**kwargs):
+        global log
+        try:
+            path=str(args[0])
+            m=self.aug.match(path)
+        except:
+            log.error("Path not found: "+path)
+            m=[]
+        log.debug('Matched: '+str(m))
+        if m == [] and self.strict:
+            raise OperationFailed('match: Path not found: '+path)
+        return m
+
+    @debug
+    def set(self,*args,**kwargs):
+        try:
+            self.aug.set(str(args[0]),str(args[1]))
+        except ValueError, ve:
+            raise OperationFailed('set ( %s, %s ): ' % (args[0],args[1]) +str(ve))
+        raise ConfigurationModified
+
+    @debug
+    def setm(self,*args,**kwargs):
+        self.aug.set(str(args[0]),str(args[1]),str(args[2]))
+        raise ConfigurationModified
+
+    @debug
+    def rm(self,*args,**kwargs):
+        self.aug.rm(str(args[0]))
+        raise ConfigurationModified
+
+    remove=rm
+
+    @debug
+    def get(self,*args,**kwargs):
+        return self.aug.get(str(args[0]))
+    
+
+    @debug
+    def augprint(self,*args,**kwargs):
+        path=str(args[0])
+        matches = recurmatch(self.aug, path)
+        res={}
+        try:
+            for (p, attr) in matches:
+                    res[p]=attr
+        except RuntimeError:
+            log.error("Path not found: "+path)
+            raise OperationFailed('augprint: Path not found: '+path)
+        return res
+
+    @debug
+    def noop(self,*args,**kwargs):
+        pass
+
+    @debug
+    def dispatcher(self,cmd)
+        if cmd in self.allowed_commands:
+            m=getattr(self,cmd)
+        else:
+            m=self.noop
+
+
+## Inputs:
+##      commands
+##      augdebug
+##      empty
+##      strict
+##      quiet
+##      path
+
+## Outputs:
+##      changed
+##      failed
+##      resutls
+
+def main():
+    global log
+    global log_debug
+    module = AnsibleModule(
+        argument_spec = dict(
+             commands  = dict(required=True),
+             augdebug  = dict(),
+             empty     = dict(default=False,choices=BOOLEANS),
+             backup    = dict(default=False,choices=BOOLEANS),
+             strict    = dict(default=False,choices=BOOLEANS),
+             quiet     = dict(default=False,choices=BOOLEANS),
+             path      = dict(default=None,aliases=['augroot','change_root','root']),
+        ),
+        supports_check_mode = True,
+    )
+
+    commands=module.params['commands']
+    allow_empty=module.params['empty']
+    strict=module.params['strict']
+    quiet=module.params['quiet']
+    backup=module.params['backup']
+
+    command_list=[]
+    if type(commands) == type(''):
+        # single string
+        cmd_array=commands.split()
+        command_list.append(cmd_array)
+
+    elif type(commands) == type({}):
+        for k in commands.keys():
+            command_list.append((k,commands[k]))
+    elif type(commands) == type([]):
+        for c in commands:
+            command_list.append(c)
+
+    if module.params['augdebug']:
+        log_debug=True
+        log=logging.getLogger('augeas')
+        log.setLevel(logging.DEBUG)
+        lh=logging.FileHandler(module.params['augdebug'],'a')
+        lf=logging.Formatter('%(levelname)s:%(message)s')
+        lh.setFormatter(lf)
+        log.addHandler(lh)
+        log.info('Starting session...')
+        # logging.basicConfig(module.params['augdebug'],level=logging.DEBUG)
+        for cmd in command_list:
+            log.debug(str(cmd))
+    else:
+        # dummy logger to catch all the logging
+        log=logging.getLogger('augeas')
+        log_debug=False
+
+    if backup:
+        flags=augeas.Augeas.SAVE_BACKUP
+    else:
+        flags=augeas.Augeas.NONE
+
+    a=AugeasWrapper(module.params['path'],module.check_mode,strict,flags)
+    res={}
+    failed=False
+    msg=''
+    changed=False
+    errors=[]
+    for full_command in command_list:
+        try:
+            if type(full_command) in (type(''),type(u'')):
+                command_name=full_command
+                params=None
+            else:
+                command_name=full_command[0]
+                if len(full_command) > 1:
+                    params=full_command[1:]
+                else:
+                    params=None
+            command=getattr(a,command_name)
+            try:
+                # we're operating on exceptions here
+                # as the only commands that would raise 
+                # ConfigurationModified
+                # are: save, set, touch
+                # none returns anything back
+                if params:
+                    r=command(*params)
+                    log.debug('Result: '+str(r))
+                    if r or allow_empty:
+                        if not res.has_key(command_name):
+                            res[command_name]=[]
+                        if not quiet:
+                            res[command_name].append(r)
+                        else:
+                            # in quiet mode we only record success/failures
+                            res[command_name].append(bool(r))
+                        log.debug('Current res: '+str(res))
+                else:
+                    r=command()
+                    log.debug('Result: '+str(r))
+                    if r or allow_empty:
+                        if not res.has_key(command_name):
+                            res[command_name]=[]
+                        res[command_name].append(r)
+                        log.debug('Current res: '+str(res))
+            except ConfigurationModified:
+                changed=True
+        except OperationFailed,e:
+            failed=True
+            errors.append(str(e))
+    if errors:
+        msg="; ".join(errors)
+    if log:
+        log.info('Closing session...')
+    if failed:
+        module.exit_json(changed=changed,failed=failed,results=res,message=msg)
+    else:
+        module.exit_json(changed=changed,failed=failed,results=res)
+
+# import module snippets
+# from ansible.module_utils.basic import *
+
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+
+main()
