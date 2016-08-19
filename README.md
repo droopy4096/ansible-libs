@@ -15,4 +15,7 @@ rpm_query - lightweight substitute for "yum" module indended only for confirmati
 
 cpacman[2] - sibling of "yum" module in a way. Some code was taked from Yum module and expanded to handle cpacman usecases, other code was dropped as incompatible with cpacman
 
-xml - xml find/replace akin to lineinfile...
+apache_vhost - query and list apache vhosts
+
+augeas - ansible module to interact with augeas configuration tools
+
