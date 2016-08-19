@@ -25,6 +25,14 @@ EXAMPLES='''
 - rpm_query: names=httpd,php state=present
 '''
 
+'''
+facts:
+   - all_packages (with states listed)
+   - present_packages
+   - absent_packages
+
+'''
+
 import rpm
 
 
