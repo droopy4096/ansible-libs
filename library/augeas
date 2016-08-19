@@ -1,5 +1,80 @@
 #!/usr/bin/python
 
+##      commands
+##      augdebug
+##      empty
+##      strict
+##      quiet
+##      path
+DOCUMENTATION='''
+author: Dmitry Makovey
+module: augeas
+short_description: use augeas to manupulate config files
+description:
+    - Execute augeas commands to modify config files
+version_added: "0.1"
+options:
+    commands:
+      description:
+      - list of commands to run
+      required: true
+    augdebug:
+      description:
+      - log debug information into specified file
+      required: false
+    empty:
+      description:
+      - allow empty
+    strict:
+      description:
+      - strict checking
+    quiet:
+      description:
+      - quiet
+    path:
+      aliases:
+      - root
+      - change_root
+      - augroot
+      description:
+      - Root for configuration files tree
+'''
+
+EXAMPLES='''
+
+  - name: Testing One-liner
+    tags: oneline
+    augeas: commands='set /files/etc/hosts/01/ipaddr 10.10.10.10' augdebug='/tmp/aug.log'
+
+  - name: Testing Augeas lists 2
+    tags: long
+    augeas:
+      commands:
+        - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
+        - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
+        - [ augprint, '$ocloud_dir' ]
+      augdebug: /tmp/aug2.log
+
+  - name: Testing conditionals
+    tags: conditionals
+    augeas: 
+      commands:
+        - [ match, '/files/etc/httpd/conf.d/owncloud.conf//directive[.="Require" and arg="all" and arg="denied"]' ]
+      augdebug: /tmp/check.log
+    register: require_all_granted_match
+    ignore_errors: True
+
+  - name: Testing conditionals part 2
+    tags: conditionals
+    shell: echo "{{ require_all_granted_match["results"]["match"][0][0] }}" > /tmp/echo.log
+
+  - name: Testing conditionals part 3
+    tags: conditionals
+    shell: echo "Found it" > /tmp/require_all_granted.log
+    when: require_all_granted_match["results"]["match"][0][0] 
+
+'''
+
 import augeas
 import logging
 

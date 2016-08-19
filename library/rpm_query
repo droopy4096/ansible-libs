@@ -3,7 +3,7 @@
 DOCUMENTATION='''
 ---
 author: Dmitry Makovey
-module: rpm
+module: rpm_query
 short_description: Check RPM package status
 description:
   - This module queries RPM database setting Ansible facts for queried packages
@@ -24,14 +24,6 @@ options:
 EXAMPLES='''
 - rpm_query: names=httpd,php state=present
 '''
-
-# import sys
-# try:
-#     import json
-# except ImportError:
-#     import simplejson as json
-# import os
-# import shlex
 
 import rpm
 
@@ -75,7 +67,6 @@ def main():
                 break
             res[p]={'version':h['version'],'release':h['release'],'state':'present'}
             present_packages[p]=res[p]
-            # print "%s-%s-%s" % (h['name'], h['version'], h['release'])
             
     if state != 'stat':
         for p in res.keys():
@@ -83,7 +74,6 @@ def main():
                 failed=True
                 
     module.exit_json(changed=False,ansible_facts={'all_packages':res,'present_packages':present_packages,'absent_packages':absent_packages},failed=failed)
-    # print json.dumps({"changed":"True","ansible_facts":res})
     
     
 # include magic from lib/ansible/module_common.py
